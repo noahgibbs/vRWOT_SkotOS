@@ -187,6 +187,7 @@ function clone_or_update {
   if [ -d "$3" ]
   then
     pushd "$3"
+    git fetch # Needed for "git checkout" if the branch has been added recently
     git checkout "$2"
     git pull
     popd
