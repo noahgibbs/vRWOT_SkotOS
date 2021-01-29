@@ -166,7 +166,7 @@ apt install nodejs npm -y
 apt-get install mariadb-server libapache2-mod-php php php-mysql certbot python-certbot-apache -y
 
 # Dgd-tools requirements
-apt-get install ruby-full -y
+apt-get install ruby-full zlib1g-dev -y
 
 ####
 # Set up Directories, Groups and Ownership
