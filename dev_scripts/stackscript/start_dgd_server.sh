@@ -4,6 +4,11 @@ set -e
 
 cd /var/skotos
 
+if [ -f no_restart.txt ]
+then
+	exit
+fi
+
 if [ -f skotos.database ]
 then
     SKOTOS_CMD="/var/dgd/bin/dgd skotos.dgd skotos.database"
