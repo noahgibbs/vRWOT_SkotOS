@@ -412,7 +412,7 @@ sudo -u skotos /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
 cat >>~skotos/crontab.txt <<EndOfMessage
 @reboot /usr/local/websocket-to-tcp-tunnel/start-tunnel.sh
 * * * * * /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
-* * * * * /bin/bash -c "/var/www/html/user/admin/restartuserdb.sh >>/var/log/userdb_servers.txt"
+* * * * * /bin/bash -c "/var/www/html/user/admin/restartuserdb.sh >>/var/log/userdb-servers.txt"
 * * * * * /var/skotos/dev_scripts/stackscript/keep_authctl_running.sh
 1 5 1-2 * * /usr/bin/certbot renew
 EndOfMessage
