@@ -638,6 +638,7 @@ systemctl restart apache2
 
 # Certbot server has to run on port 80, so use Apache for this.
 certbot --non-interactive --apache --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
+# Note: can we use certonly and do the installation ourselves? We already kind of are.
 
 ####
 # Reconfigure NGinX for LetsEncrypt
