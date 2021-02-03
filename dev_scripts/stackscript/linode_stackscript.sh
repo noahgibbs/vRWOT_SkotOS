@@ -294,13 +294,13 @@ EndOfMessage
 
 sed -i "s_hostname=\"localhost\"_hostname=\"$FQDN_CLIENT\"_" /var/skotos/skoot/data/vault/Theatre/Theatres/Tavern.xml
 
+mkdir -p /var/log/dgd/
+chown skotos:skotos /var/log/dgd/
+
 # Start DGD server on reboot, and check to make sure it's running constantly-ish.
 cat >>~skotos/crontab.txt <<EndOfMessage
 * * * * *  /var/skotos/dev_scripts/stackscript/start_dgd_server.sh
 EndOfMessage
-
-touch /var/log/dgd_server.out
-chown skotos /var/log/dgd_server.out
 
 ####
 # Set up NGinX for websockets
@@ -401,18 +401,16 @@ cat >/usr/local/websocket-to-tcp-tunnel/config.json <<EndOfMessage
 }
 EndOfMessage
 
-touch /var/log/userdb-authctl.txt
-chown skotos /var/log/userdb-authctl.txt
-touch /var/log/userdb-servers.txt
-chown skotos /var/log/userdb-servers.txt
-touch /var/log/userdb.log
+mkdir -p /var/log/userdb/
+chown skotos:skotos /var/log/userdb
+touch /var/log/userdb.log  # filename is set by thin-auth
 chown skotos /var/log/userdb.log
 
 sudo -u skotos /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
 cat >>~skotos/crontab.txt <<EndOfMessage
 @reboot /usr/local/websocket-to-tcp-tunnel/start-tunnel.sh
 * * * * * /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
-* * * * * /bin/bash -c "/var/www/html/user/admin/restartuserdb.sh >>/var/log/userdb-servers.txt"
+* * * * * /bin/bash -c "/var/www/html/user/admin/restartuserdb.sh >>/var/log/userdb/servers.txt"
 * * * * * /var/skotos/dev_scripts/stackscript/keep_authctl_running.sh
 1 5 1-2 * * /usr/bin/certbot renew
 EndOfMessage
