@@ -353,6 +353,8 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection \$connection_upgrade;
+      #proxy_ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+      #proxy_ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
     }
 }
 EndOfMessage
@@ -645,10 +647,11 @@ certbot --non-interactive --apache --agree-tos -m webmaster@$FQDN_CLIENT -d $FQD
 
 pushd /etc/nginx/sites-available
 sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
+sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage
 
 cat >>/etc/nginx/sites-available/skotos_game.conf <<EndOfMessage
 
-# Pass HTTPS connections on port 10803 to DGD after https termination
+# Pass HTTPS connections on port 10803 to DGD on port 10080 after https termination
 server {
     listen *:10803 ssl;
 
@@ -658,6 +661,9 @@ server {
       proxy_set_header X-Real-IP \$remote_addr;
       proxy_set_header X-Forwarded-Proto \$scheme;
       proxy_set_header Host \$host;
+
+      #proxy_ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+      #proxy_ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
     }
 
     ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
