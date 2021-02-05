@@ -37,6 +37,10 @@
 # THINAUTH_GIT_URL=
 # <UDF name="thinauth_git_branch" label="Thin-Auth Git Branch" default="master" example="Thin-auth branch, tag or commit to clone for your game." optional="false" />
 # THINAUTH_GIT_BRANCH=
+# <UDF name="tunnel_git_url" label="Websocket Tunnel Git URL" default="https://github.com/ChatTheatre/websocket-to-tcp-tunnel" example="Websocket Tunnel Git URL to clone for your game." optional="false" />
+# TUNNEL_GIT_URL=
+# <UDF name="tunnel_git_branch" label="Websocket Tunnel Git Branch" default="master" example="Websocket Tunnel branch, tag or commit to clone for your game." optional="false" />
+# TUNNEL_GIT_BRANCH=
 
 
 # Some differences from full real SkotOS setup:
@@ -123,6 +127,7 @@ ufw default allow outgoing
 ufw default deny incoming
 ufw allow ssh
 ufw allow 10000:10803/tcp  # for now, allow all DGD incoming ports and tunnel ports
+ufw allow 10811:10812/tcp  # wss websocket relays
 ufw deny 10070:10071/tcp # Do NOT allow AuthD/CtlD connections from off-VM
 ufw allow 80:82/tcp
 ufw allow 443/tcp
@@ -322,6 +327,10 @@ upstream gables {
     server 127.0.0.1:10801;
 }
 
+upstream gables-ssl {
+    server 127.0.0.1:10811;
+}
+
 # HTTPS-based connection to incoming port 10803, relayed to DGD web port at 10080 with HTTPS termination.
 upstream skotosdgd {
     server 127.0.0.1:10080;
@@ -353,6 +362,21 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection \$connection_upgrade;
+    }
+}
+
+server {
+    listen *:10810;
+    location /gables {
+      proxy_pass http://gables-ssl;
+      proxy_pass_request_headers on;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection \$connection_upgrade;
       #proxy_ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
       #proxy_ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
     }
@@ -372,7 +396,7 @@ nginx -s reload
 mkdir -p /var/log/tunnel
 chown -R skotos.skotos /var/log/tunnel
 
-clone_or_update https://github.com/ChatTheatre/websocket-to-tcp-tunnel master /usr/local/websocket-to-tcp-tunnel
+clone_or_update "$TUNNEL_GIT_URL" "$TUNNEL_GIT_BRANCH" /usr/local/websocket-to-tcp-tunnel
 
 pushd /usr/local/websocket-to-tcp-tunnel/
 npm install
@@ -396,6 +420,28 @@ cat >/usr/local/websocket-to-tcp-tunnel/config.json <<EndOfMessage
         {
             "name": "gables-tree-of-woe",
             "listen": 10802,
+            "send": 10090,
+            "host": "$FQDN_CLIENT",
+            "sendTunnelInfo": false
+        },
+        {
+            "name": "gables-ssl",
+            "listen": 10811,
+            "listen_ssl": {
+              "cert": "/etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem",
+              "key": "/etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem"
+            },
+            "send": 10443,
+            "host": "$FQDN_CLIENT",
+            "sendTunnelInfo": false
+        },
+        {
+            "name": "gables-tree-of-woe-ssl",
+            "listen": 10812,
+            "listen_ssl": {
+              "cert": "/etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem",
+              "key": "/etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem"
+            },
             "send": 10090,
             "host": "$FQDN_CLIENT",
             "sendTunnelInfo": false
