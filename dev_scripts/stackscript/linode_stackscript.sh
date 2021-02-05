@@ -480,8 +480,8 @@ var profiles = {
                 "method":   "websocket",
                 "protocol": "wss",
                 "server":   "$FQDN_CLIENT",
-                "port":      10800,
-                "woe_port":  10802,
+                "port":      10810,
+                "woe_port":  10802, /* UPDATE ME! */
                 "http_port": 10080,
                 "path":     "/gables",
                 "extra":    "",
