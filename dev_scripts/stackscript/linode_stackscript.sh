@@ -327,7 +327,7 @@ upstream gables {
     server 127.0.0.1:10801;
 }
 
-upstream gables-ssl {
+upstream gables-wss {
     server 127.0.0.1:10811;
 }
 
@@ -368,7 +368,7 @@ server {
 server {
     listen *:10810;
     location /gables {
-      proxy_pass http://gables-ssl;
+      proxy_pass http://gables-wss;
       proxy_pass_request_headers on;
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
       proxy_set_header X-Real-IP \$remote_addr;
@@ -425,7 +425,7 @@ cat >/usr/local/websocket-to-tcp-tunnel/config.json <<EndOfMessage
             "sendTunnelInfo": false
         },
         {
-            "name": "gables-ssl",
+            "name": "gables-wss",
             "listen": 10811,
             "listen_ssl": {
               "cert": "/etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem",
