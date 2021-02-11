@@ -428,7 +428,7 @@ chown skotos:skotos /var/log/userdb
 touch /var/log/userdb.log  # filename is set by thin-auth
 chown skotos /var/log/userdb.log
 
-sudo -u skotos /usr/local/websocket-to-tcp-tunnel/stop_tunnel.sh
+sudo -u skotos /usr/local/websocket-to-tcp-tunnel/stop-tunnel.sh
 sudo -u skotos /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
 cat >>~skotos/crontab.txt <<EndOfMessage
 @reboot /usr/local/websocket-to-tcp-tunnel/start-tunnel.sh
