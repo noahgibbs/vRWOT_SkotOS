@@ -127,7 +127,6 @@ ufw default allow outgoing
 ufw default deny incoming
 ufw allow ssh
 ufw allow 10000:10803/tcp  # for now, allow all DGD incoming ports and tunnel ports
-ufw allow 10811:10812/tcp  # wss websocket relays
 ufw deny 10070:10071/tcp # Do NOT allow AuthD/CtlD connections from off-VM
 ufw allow 80:82/tcp
 ufw allow 443/tcp
@@ -323,12 +322,8 @@ map \$http_upgrade \$connection_upgrade {
         '' close;
         }
 
-upstream gables {
+upstream gables-ws {
     server 127.0.0.1:10801;
-}
-
-upstream gables-wss {
-    server 127.0.0.1:10811;
 }
 
 # HTTPS-based connection to incoming port 10803, relayed to DGD web port at 10080 with HTTPS termination.
@@ -353,7 +348,7 @@ server {
 server {
     listen *:10800;
     location /gables {
-      proxy_pass http://gables;
+      proxy_pass http://gables-ws;
       proxy_pass_request_headers on;
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
       proxy_set_header X-Real-IP \$remote_addr;
@@ -366,9 +361,9 @@ server {
 }
 
 server {
-    listen *:10810;
+    listen *:10810 ssl;
     location /gables {
-      proxy_pass http://gables-wss;
+      proxy_pass http://gables-ws;
       proxy_pass_request_headers on;
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
       proxy_set_header X-Real-IP \$remote_addr;
@@ -377,9 +372,9 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection \$connection_upgrade;
-      #proxy_ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
-      #proxy_ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
     }
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
 }
 EndOfMessage
 
@@ -423,28 +418,6 @@ cat >/usr/local/websocket-to-tcp-tunnel/config.json <<EndOfMessage
             "send": 10090,
             "host": "$FQDN_CLIENT",
             "sendTunnelInfo": false
-        },
-        {
-            "name": "gables-wss",
-            "listen": 10811,
-            "listen_ssl": {
-              "cert": "/etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem",
-              "key": "/etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem"
-            },
-            "send": 10443,
-            "host": "$FQDN_CLIENT",
-            "sendTunnelInfo": false
-        },
-        {
-            "name": "gables-tree-of-woe-ssl",
-            "listen": 10812,
-            "listen_ssl": {
-              "cert": "/etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem",
-              "key": "/etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem"
-            },
-            "send": 10090,
-            "host": "$FQDN_CLIENT",
-            "sendTunnelInfo": false
         }
     ]
 }
@@ -455,6 +428,7 @@ chown skotos:skotos /var/log/userdb
 touch /var/log/userdb.log  # filename is set by thin-auth
 chown skotos /var/log/userdb.log
 
+sudo -u skotos /usr/local/websocket-to-tcp-tunnel/stop_tunnel.sh
 sudo -u skotos /usr/local/websocket-to-tcp-tunnel/search-tunnel.sh
 cat >>~skotos/crontab.txt <<EndOfMessage
 @reboot /usr/local/websocket-to-tcp-tunnel/start-tunnel.sh
@@ -466,7 +440,7 @@ EndOfMessage
 crontab -u skotos ~skotos/crontab.txt
 
 ####
-# 8. Set up Orchil
+# 8. Set up Orchil - NOTE: ORCHIL IN /var/www/html/client APPEARS UNUSED!
 ####
 
 mkdir -p /var/www/html
@@ -481,7 +455,7 @@ var profiles = {
                 "protocol": "wss",
                 "server":   "$FQDN_CLIENT",
                 "port":      10810,
-                "woe_port":  10802, /* UPDATE ME! */
+                "woe_port":  10090,
                 "http_port": 10080,
                 "path":     "/gables",
                 "extra":    "",
@@ -693,7 +667,7 @@ certbot --non-interactive --apache --agree-tos -m webmaster@$FQDN_CLIENT -d $FQD
 
 pushd /etc/nginx/sites-available
 sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
-sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage
+sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage, if any
 
 cat >>/etc/nginx/sites-available/skotos_game.conf <<EndOfMessage
 
@@ -707,9 +681,6 @@ server {
       proxy_set_header X-Real-IP \$remote_addr;
       proxy_set_header X-Forwarded-Proto \$scheme;
       proxy_set_header Host \$host;
-
-      #proxy_ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
-      #proxy_ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
     }
 
     ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
