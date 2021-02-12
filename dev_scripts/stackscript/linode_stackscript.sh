@@ -669,8 +669,7 @@ nginx -s reload
 
 # Do this last - it depends on DNS propagation, which can be weird. That way if this fails, only a little needs to be redone.
 
-certbot --non-interactive --nginx --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
-# Note: can we use certonly and do the installation ourselves? We already kind of are.
+certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
 
 ####
 # Reconfigure NGinX for LetsEncrypt
@@ -679,6 +678,8 @@ certbot --non-interactive --nginx --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN
 pushd /etc/nginx/sites-available
 sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
 sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage, if any
+sed -i "s/#ssl_cert/ssl_cert/g" skotos-client.conf  # Uncomment SSL cert usage
+sed -i "s/#ssl_cert/ssl_cert/g" login.conf  # Uncomment SSL cert usage
 popd
 
 nginx -t
