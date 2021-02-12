@@ -668,8 +668,8 @@ nginx -s reload
 ####
 
 # Do this last - it depends on DNS propagation, which can be weird. That way if this fails, only a little needs to be redone.
-
-certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
+certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT
+certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT -d $FQDN_LOGIN
 
 ####
 # Reconfigure NGinX for LetsEncrypt
