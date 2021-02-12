@@ -129,7 +129,7 @@ ufw allow ssh
 ufw allow 10000:10803/tcp  # for now, allow all DGD incoming ports and tunnel ports
 ufw allow 10810/tcp
 ufw deny 10070:10071/tcp # Do NOT allow AuthD/CtlD connections from off-VM
-ufw allow 80:82/tcp
+ufw allow 80/tcp
 ufw allow 443/tcp
 ufw enable
 
@@ -168,7 +168,7 @@ curl -sL https://deb.nodesource.com/setup_9.x | bash -
 apt install nodejs npm -y
 
 # Thin-auth requirements
-apt-get install mariadb-server libapache2-mod-php php php-mysql certbot python-certbot-apache -y
+apt-get install mariadb-server php php-fpm php-mysql certbot -y
 
 # Dgd-tools requirements
 apt-get install ruby-full zlib1g-dev -y
@@ -332,22 +332,10 @@ upstream skotosdgd {
     server 127.0.0.1:10080;
 }
 
-# This is purely a backup/debugging interface for testing.
-# It serves Orchil files.
-server {
-    listen *:82 default_server;
-
-    server_name $FQDN_CLIENT;
-    index index.html index.htm ;
-
-    root /var/www/html/client;
-    location / {
-        try_files \$uri \$uri/index.html \$uri.html =404;
-    }
-}
-
 server {
     listen *:10800;
+    server_name $FQDN_CLIENT;
+
     location /gables {
       proxy_pass http://gables-ws;
       proxy_pass_request_headers on;
@@ -363,6 +351,8 @@ server {
 
 server {
     listen *:10810 ssl;
+    server_name $FQDN_CLIENT;
+
     location /gables {
       proxy_pass http://gables-ws;
       proxy_pass_request_headers on;
@@ -581,76 +571,80 @@ cat >/var/www/html/user/config/server.json <<EndOfMessage
 EndOfMessage
 
 ####
-# Set up Apache2 for port 80 and PHP
+# Set up FQDN_LOGIN site and SkotOS-client site
 ####
 
-# Enable short tags for Apache mod_php
-sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/php/7.3/apache2/php.ini
+# Enable short tags for PHP
+#sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/php/7.3/apache2/php.ini
+sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/php/7.3/fpm/php.ini
 
-rm -f /etc/apache2/sites-enabled/000-default.conf
-cat >/etc/apache2/sites-available/login.conf <<EndOfMessage
-<VirtualHost *:80>
+cat >/etc/nginx/sites-available/login.conf <<EndOfMessage
+server {
+    listen *:80;
+    server_name $FQDN_LOGIN;
 
-    ServerName $FQDN_LOGIN
-    ServerAdmin webmaster@localhost
+    return 301 https://\$host\$request_uri;
+}
 
-    DocumentRoot /var/www/html/user
-    <Directory /var/www/html/user/>
-        Options FollowSymLinks
-        AllowOverride None
-        Require all granted
-    </Directory>
+server {
+    listen *:443 ssl;
+    server_name $FQDN_LOGIN;
 
-    ErrorLog \${APACHE_LOG_DIR}/user-error.log
-    CustomLog \${APACHE_LOG_DIR}/user-access.log combined
+    root /var/www/html/user;
+    index index.php index.html index.htm;
 
-RewriteEngine on
-RewriteCond %{SERVER_NAME} =$FQDN_LOGIN
-RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
-</VirtualHost>
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_LOGIN/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_LOGIN/privkey.pem; # managed by Certbot
+}
 EndOfMessage
-rm -f /etc/apache2/sites-enabled/login.conf
-ln -s /etc/apache2/sites-available/login.conf /etc/apache2/sites-enabled/login.conf
+rm -f /etc/nginx/sites-enabled/login.conf
+ln -s /etc/nginx/sites-available/login.conf /etc/nginx/sites-enabled/login.conf
 
-cat >/etc/apache2/sites-available/skotos-client.conf <<EndOfMessage
-<VirtualHost *:80>
+cat >/etc/nginx/sites-available/skotos-client.conf <<EndOfMessage
+server {
+    listen *:80;
+    server_name $FQDN_CLIENT;
 
-    ServerName $FQDN_CLIENT
-    ServerAdmin webmaster@localhost
+    return 301 https://\$host\$request_uri;
+}
 
-    DocumentRoot /var/www/html/client
-    <Directory /var/www/html/client/>
-        Options FollowSymLinks
-        AllowOverride None
-        Require all granted
-    </Directory>
-    DirectoryIndex index.html index.htm
+server {
+    listen *:443 ssl;
+    server_name $FQDN_CLIENT;
 
-    Alias /assets /var/skotos/skoot/usr/Gables/data/www/assets
-    <Directory /var/skotos/skoot/usr/Gables/data/www/assets>
-        Options FollowSymLinks
-        AllowOverride None
-        Require all granted
-    </Directory>
+    root /var/www/html/client;
+    index index.html index.htm;
 
-    ErrorLog \${APACHE_LOG_DIR}/client-error.log
-    CustomLog \${APACHE_LOG_DIR}/client-access.log combined
-</VirtualHost>
+    location /assets {
+      root /var/skotos/skoot/usr/Gables/data/www/assets;
+    }
+
+    location / {
+      try_files \$uri \$uri/ =404;
+    }
+
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
+}
 EndOfMessage
-rm -f /etc/apache2/sites-enabled/skotos-client.conf
-ln -s /etc/apache2/sites-available/skotos-client.conf /etc/apache2/sites-enabled/skotos-client.conf
+rm -f /etc/nginx/sites-enabled/skotos-client.conf
+ln -s /etc/nginx/sites-available/skotos-client.conf /etc/nginx/sites-enabled/skotos-client.conf
 
-cat >/etc/apache2/mods-available/dir.conf <<EndOfMessage
-<IfModule mod_dir.c>
-        DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm
-</IfModule>
-
-# vim: syntax=apache ts=4 sw=4 sts=4 sr noet
-EndOfMessage
-
-a2enmod rewrite || echo "OK..."
-a2enmod ssl || echo "OK..."
-systemctl restart apache2
+nginx -t
+nginx -s reload
 
 ####
 # Certbot for SSL
@@ -675,6 +669,7 @@ cat >>/etc/nginx/sites-available/skotos_game.conf <<EndOfMessage
 # Pass HTTPS connections on port 10803 to DGD on port 10080 after https termination
 server {
     listen *:10803 ssl;
+    server_name $FQDN_CLIENT;
 
     location / {
       proxy_pass http://skotosdgd;
