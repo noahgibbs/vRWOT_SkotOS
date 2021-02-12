@@ -594,6 +594,7 @@ EndOfMessage
 # Enable short tags for PHP
 #sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/php/7.3/apache2/php.ini
 sed -i 's/short_open_tag = Off/short_open_tag = On/' /etc/php/7.3/fpm/php.ini
+/etc/init.d/php7.3-fpm restart
 
 cat >/etc/nginx/sites-available/login.conf <<EndOfMessage
 server {
