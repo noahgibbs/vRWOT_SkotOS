@@ -311,7 +311,7 @@ EndOfMessage
 # Set up NGinX for websockets
 ####
 
-rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-enabled/*.conf
 
 # TODO: Proper HTTPS termination for connections to port 10080
 cat >/etc/nginx/sites-available/skotos_game.conf <<EndOfMessage
