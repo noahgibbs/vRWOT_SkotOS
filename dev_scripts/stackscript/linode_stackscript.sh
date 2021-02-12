@@ -168,7 +168,7 @@ curl -sL https://deb.nodesource.com/setup_9.x | bash -
 apt install nodejs npm -y
 
 # Thin-auth requirements
-apt-get install mariadb-server php php-fpm php-mysql certbot -y
+apt-get install mariadb-server php php-fpm php-mysql certbot python3-certbot-nginx -y
 
 # Dgd-tools requirements
 apt-get install ruby-full zlib1g-dev -y
@@ -364,6 +364,23 @@ server {
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection \$connection_upgrade;
     }
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
+}
+
+# Pass HTTPS connections on port 10803 to DGD on port 10080 after https termination
+server {
+    listen *:10803 ssl;
+    server_name $FQDN_CLIENT;
+
+    location / {
+      proxy_pass http://skotosdgd;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header Host \$host;
+    }
+
     #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
     #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
 }
@@ -652,8 +669,7 @@ nginx -s reload
 
 # Do this last - it depends on DNS propagation, which can be weird. That way if this fails, only a little needs to be redone.
 
-# Certbot server has to run on port 80, so use Apache for this.
-certbot --non-interactive --apache --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
+certbot --non-interactive --nginx --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
 # Note: can we use certonly and do the installation ourselves? We already kind of are.
 
 ####
@@ -663,27 +679,6 @@ certbot --non-interactive --apache --agree-tos -m webmaster@$FQDN_CLIENT -d $FQD
 pushd /etc/nginx/sites-available
 sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
 sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage, if any
-
-cat >>/etc/nginx/sites-available/skotos_game.conf <<EndOfMessage
-
-# Pass HTTPS connections on port 10803 to DGD on port 10080 after https termination
-server {
-    listen *:10803 ssl;
-    server_name $FQDN_CLIENT;
-
-    location / {
-      proxy_pass http://skotosdgd;
-      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-      proxy_set_header X-Real-IP \$remote_addr;
-      proxy_set_header X-Forwarded-Proto \$scheme;
-      proxy_set_header Host \$host;
-    }
-
-    ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
-}
-EndOfMessage
-
 popd
 
 nginx -t
