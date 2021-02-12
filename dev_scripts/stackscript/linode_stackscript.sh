@@ -364,6 +364,8 @@ server {
       proxy_set_header Upgrade \$http_upgrade;
       proxy_set_header Connection \$connection_upgrade;
     }
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
 }
 
 # Pass HTTPS connections on port 10803 to DGD on port 10080 after https termination
@@ -378,6 +380,9 @@ server {
       proxy_set_header X-Forwarded-Proto \$scheme;
       proxy_set_header Host \$host;
     }
+
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
 }
 EndOfMessage
 
@@ -617,6 +622,9 @@ server {
     location ~ /\.ht {
         deny all;
     }
+
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_LOGIN/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_LOGIN/privkey.pem; # managed by Certbot
 }
 EndOfMessage
 rm -f /etc/nginx/sites-enabled/login.conf
@@ -644,6 +652,9 @@ server {
     location / {
       try_files \$uri \$uri/ =404;
     }
+
+    #ssl_certificate /etc/letsencrypt/live/$FQDN_CLIENT/fullchain.pem; # managed by Certbot
+    #ssl_certificate_key /etc/letsencrypt/live/$FQDN_CLIENT/privkey.pem; # managed by Certbot
 }
 EndOfMessage
 rm -f /etc/nginx/sites-enabled/skotos-client.conf
@@ -658,7 +669,7 @@ nginx -s reload
 
 # Do this last - it depends on DNS propagation, which can be weird. That way if this fails, only a little needs to be redone.
 
-certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
+certbot --non-interactive --nginx --agree-tos -m webmaster@$FQDN_CLIENT -d $FQDN_CLIENT -d $FQDN_LOGIN
 # Note: can we use certonly and do the installation ourselves? We already kind of are.
 
 ####
@@ -666,10 +677,8 @@ certbot --non-interactive --nginx --agree-tos certonly -m webmaster@$FQDN_CLIENT
 ####
 
 pushd /etc/nginx/sites-available
-#sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
-#sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage, if any
-#sed -i "s/#ssl_cert/ssl_cert/g" login.conf  # Uncomment SSL cert usage
-#sed -i "s/#ssl_cert/ssl_cert/g" skotos-client.conf  # Uncomment SSL cert usage
+sed -i "s/#ssl_cert/ssl_cert/g" skotos_game.conf  # Uncomment SSL cert usage
+sed -i "s/#proxy_ssl_cert/proxy_ssl_cert/g" skotos_game.conf  # Uncomment proxy SSL cert usage, if any
 popd
 
 nginx -t
